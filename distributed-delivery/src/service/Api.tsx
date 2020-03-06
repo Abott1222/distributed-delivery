@@ -1,6 +1,6 @@
 import React from 'react';
 import { Interface } from 'readline';
-import {Options} from "../model/api";
+import {Options, APIBandwidthResp} from "../model/api";
 import { resolve } from 'dns';
 
 interface state {
@@ -9,10 +9,12 @@ interface state {
 interface props {}
 
 const baseURL:string = "http://localhost:3000";
+const TODAY = new Date().getTime();
 
 export class Api extends React.Component<props, state> {
     constructor(props:any) {
         super(props);
+        
     }
 
     private async callApi(url: string, requestData?: URLSearchParams):Promise<Response> {
@@ -20,7 +22,9 @@ export class Api extends React.Component<props, state> {
         url = baseURL + url;
 
         var myHeaders = new Headers();
-        myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+        let contentType =  "application/x-www-form-urlencoded";
+        myHeaders.append("Content-Type", contentType);
 
         var requestOptions:Options = {
             method: 'POST',
@@ -32,8 +36,47 @@ export class Api extends React.Component<props, state> {
         }
 
         return await fetch(url, requestOptions)
-        //.then(response => response.json())
 
+    }
+    
+
+    async fetchData(to?:string, from?:string): Promise<any> {
+        let data: APIBandwidthResp;
+        let token:any;
+        let urlencoded = new URLSearchParams();
+        try {
+            token = localStorage.getItem("session_token");
+          } catch (e) { 
+              console.error(e) 
+          }
+        if(token) {
+            urlencoded.append("session_token", token);
+            urlencoded.append("from", "0");
+            urlencoded.append("to", TODAY.toString());
+
+            const ApiResponse = await this.callApi("/bandwidth", urlencoded)
+
+            const responseJSON = ApiResponse.json();
+
+            return await responseJSON.then((result:any) => 
+                {
+                    console.log("results \n\n");
+                    console.log(result);
+                    data = result;
+                    try {
+                        localStorage.setItem('data', JSON.stringify(data));
+                    } catch (e) { 
+
+                        console.error(e) 
+                    }
+                    return Promise.resolve(data);
+                }
+            )
+            .catch((error:Error) => {
+                console.log('error', error)
+                return Promise.reject(error);
+            });
+        }
     }
 
 
@@ -44,7 +87,7 @@ export class Api extends React.Component<props, state> {
         try {
           token = localStorage.getItem("session_token");
         } catch (e) { 
-            //alert(JSON.stringify(e));
+
             console.error(e) 
         }
         if(token) {
@@ -66,7 +109,6 @@ export class Api extends React.Component<props, state> {
                     try {
                         localStorage.setItem('session_token', token.toString());
                     } catch (e) { 
-                        //alert(JSON.stringify(e));
                         console.error(e) 
                     }
                     return Promise.resolve(token);
